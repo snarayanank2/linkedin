@@ -6,6 +6,9 @@ import logging
 import pdb
 import csv
 import re
+import click
+from sheetfu import SpreadsheetApp
+from sheetfu import Table
 from selenium.common.exceptions import NoSuchElementException
 
 logger = logging.getLogger(__name__)
@@ -243,7 +246,59 @@ def split_names(input_filename, output_filename):
     for row in rows:
         out.writerow(row)
 
-logging.basicConfig(level=logging.INFO)
-#test_collect_contacts(saved_search_id=10331)
-test_connect_contacts(filename='/tmp/batch.csv')
-time.sleep(10)
+@click.group()
+@click.option('--credentials', default='gsheets.json', help='Credentials for gsheets access')
+@click.option('--spreadsheet-id', default='15I9IhKJmimngTxNkqEgZz3Srugec4MZMo6k4YJStMms', help='Spreadsheet ID')
+@click.pass_context
+def cli(ctx, credentials, spreadsheet_id):
+    ctx.ensure_object(dict)
+    logging.basicConfig(level=logging.INFO)
+    ctx.obj['credentials'] = credentials
+    ctx.obj['spreadsheet_id'] = spreadsheet_id
+
+@cli.command()
+@click.pass_context
+def test(ctx):
+    credentials = ctx.obj['credentials']
+    spreadsheet_id = ctx.obj['spreadsheet_id']
+    logger.info('test called with credentials %s', credentials)
+    sa = SpreadsheetApp(credentials)
+    spreadsheet = sa.open_by_id(spreadsheet_id=spreadsheet_id)
+    table = Table.get_table_from_sheet(
+        spreadsheet=spreadsheet,
+        sheet_name='salesnav'
+    )
+    for row in table:
+        logger.info('row %s', row)
+        logger.info('name %s', row.get_field_value('first_name'))
+    #test_collect_contacts(saved_search_id=10331)
+    #test_connect_contacts(filename='/tmp/batch.csv')
+    #time.sleep(10)
+
+@cli.group()
+@click.pass_context
+def salesnav(ctx):
+    pass
+
+@salesnav.command('search')
+@click.pass_context
+def salesnav_search(ctx):
+    credentials = ctx.obj['credentials']
+    logger.info('salesnav search called with credentials %s', credentials)
+
+@salesnav.command('get_profiles')
+@click.pass_context
+def get_profiles(ctx):
+    credentials = ctx.obj['credentials']
+    logger.info('salesnav get_profiles called with credentials %s', credentials)
+
+@cli.group()
+@click.pass_context
+def profiles(ctx):
+    pass
+
+@profiles.command('connect')
+@click.pass_context
+def profiles_connect(ctx):
+    credentials = ctx.obj['credentials']
+    logger.info('profiles connect called with credentials %s', credentials)

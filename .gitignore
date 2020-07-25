@@ -16,5 +16,6 @@ release.sh
 # Ignore build files
 build/
 dist/
-fylesdk.egg-info/
+linkedin.egg-info/
 
+gsheets.json
