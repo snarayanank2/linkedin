@@ -51,19 +51,19 @@ python -m linkedin test
 * Save search results to google sheet. Will skip out of network
 
 ```
-python -m linkedin salesnav search --id=<search id>
+python -m linkedin salesnav search --search-id=<search-id>
 ```
 
 * Extract LinkedIn profiles from salesnav data
 
 ```
-python -m linkedin salesnav get_profiles --batch_id=<batch_id>
+python -m linkedin salesnav get_profiles --batch-id=<batch-id>
 ```
 
 * Connect with everybody in search result with templated message
 
 ```
-python -m linkedin profiles connect --batch_id=<batch_id> --message_id=<message_id>
+python -m linkedin profiles connect --batch-id=<batch-id> --message-id=<message-id>
 ```
 
 * To withdraw old invitations to connect

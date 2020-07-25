@@ -10,6 +10,8 @@ import click
 from sheetfu import SpreadsheetApp
 from sheetfu import Table
 from selenium.common.exceptions import NoSuchElementException
+from dateutil.parser import parse
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -246,15 +248,56 @@ def split_names(input_filename, output_filename):
     for row in rows:
         out.writerow(row)
 
+def pause(min=600, max=8000):
+    s = (random.randint(min, max) * 1.0) / 1000.0
+    time.sleep(s)
+
 @click.group()
-@click.option('--credentials', default='gsheets.json', help='Credentials for gsheets access')
-@click.option('--spreadsheet-id', default='15I9IhKJmimngTxNkqEgZz3Srugec4MZMo6k4YJStMms', help='Spreadsheet ID')
+@click.option('--gsheets-credentials', default='gsheets.json', help='Credentials for gsheets access')
+@click.option('--linkedin-username', default=lambda: os.environ.get('LINKEDIN_USERNAME', None), required=True, help='Linkedin username')
+@click.option('--linkedin-password', default=lambda: os.environ.get('LINKEDIN_PASSWORD', None), required=True, help='Linkedin password')
+@click.option('--spreadsheet-id', default=lambda: os.environ.get('GSHEETS_SPREADSHEET_ID', None), help='GSheets spreadsheet ID')
 @click.pass_context
-def cli(ctx, credentials, spreadsheet_id):
+def cli(ctx, gsheets_credentials, linkedin_username, linkedin_password, spreadsheet_id):
     ctx.ensure_object(dict)
     logging.basicConfig(level=logging.INFO)
-    ctx.obj['credentials'] = credentials
-    ctx.obj['spreadsheet_id'] = spreadsheet_id
+    sa = SpreadsheetApp(gsheets_credentials)
+    spreadsheet = sa.open_by_id(spreadsheet_id=spreadsheet_id)
+    salesnav = Table.get_table_from_sheet(
+        spreadsheet=spreadsheet,
+        sheet_name='salesnav'
+    )
+    sb = SimpleBrowser(browser='chrome', width=1536, height=864)
+    sb.get('https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin')
+    sb.input(xpath='//input[@id="username"]', keys=linkedin_username)
+    sb.input(xpath='//input[@id="password"]', keys=linkedin_password)
+    pause()
+    sb.click(xpath='//button[contains(text(), "Sign in")]')
+    pause()
+    ctx.obj['sb'] = sb
+    ctx.obj['salesnav'] = salesnav
+
+base_dt = parse('1900-01-01T00:00:00')
+
+def dt_deserialize(v):
+    """
+    s - representation from googlesheets
+
+    Returns
+    datetime object
+    """
+    offset_ms = v * 24 * 60 * 60 * 1000
+    return base_dt + timedelta(milliseconds=offset_ms)
+
+def dt_serialize(dt):
+    """
+    dt - datetime object
+
+    Returns
+    floating point representation that can be used by table
+    """
+    td = (dt - base_dt)
+    return td.days + (td.seconds * 1.0 / (60 * 60 * 24.0))
 
 @cli.command()
 @click.pass_context
@@ -268,9 +311,11 @@ def test(ctx):
         spreadsheet=spreadsheet,
         sheet_name='salesnav'
     )
+    logger.info('header is %s', table.header)
     for row in table:
-        logger.info('row %s', row)
+        logger.info('row %s', row.values)
         logger.info('name %s', row.get_field_value('first_name'))
+        logger.info('invited_at %s', dt_deserialize(row.get_field_value('invited_at')))
     #test_collect_contacts(saved_search_id=10331)
     #test_connect_contacts(filename='/tmp/batch.csv')
     #time.sleep(10)
@@ -280,11 +325,84 @@ def test(ctx):
 def salesnav(ctx):
     pass
 
+@salesnav.command('list')
+@click.pass_context
+def salesnav_list(ctx):
+    salesnav = ctx.obj['salesnav']
+    logger.info('header is %s', salesnav.header)
+    for row in salesnav:
+        logger.info('row %s', row.values)
+        logger.info('name %s', row.get_field_value('first_name'))
+        logger.info('invited_at %s', dt_deserialize(row.get_field_value('invited_at')))
+
+def __salesnav_id_from_url(url):
+    g = re.match(r'https://.*/people/([^,]*),.*', url)
+    if not g:
+        return None
+    return g[1]
+
+def __company_id_from_url(url):
+    g = re.match(r'https://.*/company/(.*)', url)
+    if not g:
+        return None
+    return g[1]
+
+def __search_results_page_generator(sb):
+    dls = sb.find_many(xpath='//section[@class="result-lockup"]//dl')
+    for dl in dls:
+        data = {}
+        a = dl.find_element_by_xpath('./dt/a')
+        data['full_name'] = a.text
+        data['full_name'] = (data['full_name'].split(',')[0]).lower().capitalize()
+        words = data['full_name'].split(' ')
+        data['first_name'] = words[0].lower().capitalize()
+        data['last_name'] = words[-1].lower().capitalize() if len(words) > 1 else None
+        link = a.get_attribute('href')
+        id = __salesnav_id_from_url(url=link)
+        data['sales_nav_url'] = link
+        data['id'] = id
+        dds = dl.find_elements_by_xpath('./dd')
+        data['title'] = dds[1].find_elements_by_xpath('./span')[0].text
+        data['company'] = dds[1].find_element_by_xpath('./span/span/a/span').text
+        data['company_url'] = dds[1].find_element_by_xpath('./span/span/a').get_attribute('href')
+        data['company_id'] = __company_id_from_url(url=data['company_url'])
+        try:
+            data['location'] = dds[3].find_element_by_xpath('./ul/li').text
+            data['experience'] = dds[2].find_element_by_xpath('./span').text
+        except NoSuchElementException as e:
+            logger.exception('could not find element')
+        yield data
+
+def __search_results_generator(sb, search_id):
+    sb.get(f'https://www.linkedin.com/sales/search/people?savedSearchId={search_id}')
+    pause()
+    sb.scroll_down_page()
+    n = sb.find(xpath='//button[@class="search-results__pagination-next-button"]', scroll=True)
+    disabled = n.get_attribute('disabled')
+    index = 0
+    results = []
+    while not disabled:
+        pause()
+        search_results = __search_results_page_generator(sb=sb)
+        for sr in search_results:
+            sr['search_id'] = search_id
+            yield sr
+        n.click()
+        pause()
+        sb.scroll_down_page()
+        n = sb.find(xpath='//button[@class="search-results__pagination-next-button"]', scroll=True)
+        disabled = n.get_attribute('disabled')
+
 @salesnav.command('search')
 @click.pass_context
-def salesnav_search(ctx):
-    credentials = ctx.obj['credentials']
-    logger.info('salesnav search called with credentials %s', credentials)
+@click.option('--search-id', required=True, help='Saved search ID')
+def salesnav_search(ctx, search_id):
+    salesnav = ctx.obj['salesnav']
+    sb = ctx.obj['sb']
+    for sr in __search_results_generator(sb=sb, search_id=search_id):
+        logger.info('adding sr %s', sr)
+        salesnav.add_one(sr)
+    salesnav.commit()
 
 @salesnav.command('get_profiles')
 @click.pass_context
