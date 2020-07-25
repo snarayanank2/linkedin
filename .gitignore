@@ -1,0 +1,20 @@
+# Ignor Visual Studio Code/Pycharm settings
+*~
+*\#
+.vscode/
+.idea/
+*.pyc
+
+# Ignore python cache
+__pycache__/
+
+# Ignore release stuff
+venv/
+dev.py
+release.sh
+
+# Ignore build files
+build/
+dist/
+fylesdk.egg-info/
+
