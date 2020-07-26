@@ -247,6 +247,55 @@ def salesnav_connect(ctx, batch_size, message):
             break
     pause(min=4000, max=8000)
 
+
+def __follow_salesnav(sb, salesnav_url):
+    sb.get(salesnav_url)
+    sb.click(xpath='//button[contains(@class, "right-actions-overflow-menu-trigger")]')
+    pause(min=200, max=400)
+    sb.click(xpath='//div[@data-control-name="view_linkedin"]')
+    pause(min=500, max=1000)
+    # this is one weird thing.. linkedin.com opens in new tab so we need to switch to it
+    # TODO: move this functionality to simplebrowser
+    sb.driver.switch_to.window(sb.driver.window_handles[1])
+    profile_url = sb.get_current_url()
+    followed = False
+    # sometimes there's a connect button and sometimes connect is in under More. First check if connect button exists
+    try:
+        sb.click(xpath='//button/span[contains(text(), "More")]')
+        pause(min=200, max=400)
+        sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(text(),"Follow")]')
+        followed = True
+    except Exception as e:
+        logger.error('could not follow.. failed')
+        return profile_url, followed
+    finally:
+        pause()
+        sb.close_windows()
+    return profile_url, followed
+
+@salesnav.command('follow')
+@click.pass_context
+@click.option('--batch-size', default=100, required=True, help='Number of people to follow')
+def salesnav_follow(ctx, batch_size):
+    salesnav = ctx.obj['salesnav']
+    sb = ctx.obj['sb']
+    for row in salesnav:
+        if row.get_field_value('followed_at') or row.get_field_value('failed_at'):
+            logger.info('skipping row %s', row.get_field_value('id'))
+            continue
+        salesnav_url = row.get_field_value('salesnav_url')
+        profile_url, followed = __follow_salesnav(sb=sb, salesnav_url=salesnav_url)
+        row.set_field_value('profile_url', profile_url)
+        if followed:
+            row.set_field_value('followed_at', dt_serialize(datetime.now()))
+        else:
+            row.set_field_value('failed_at', dt_serialize(datetime.now()))
+        salesnav.commit()
+        batch_size = batch_size - 1
+        if batch_size <= 0:
+            break
+    pause(min=4000, max=8000)
+
 @cli.group()
 @click.pass_context
 def invitations(ctx):
@@ -254,11 +303,12 @@ def invitations(ctx):
 
 @invitations.command('withdraw')
 @click.pass_context
-def invitations_withdraw(ctx):
+@click.option('--start-page', default=4, required=True, help='Start withdrawing invitations from this page')
+def invitations_withdraw(ctx, start_page):
     sb = ctx.obj['sb']
-    sb.get('https://www.linkedin.com/mynetwork/invitation-manager/sent/?invitationType=CONNECTION')
-
+    sb.get(f'https://www.linkedin.com/mynetwork/invitation-manager/sent/?invitationType=&page={start_page}')
     while True:
+        pause()
         lis = sb.find_many(xpath='//li[contains(@class, "invitation-card")]')
         liw = None
         for li in lis:
@@ -267,6 +317,7 @@ def invitations_withdraw(ctx):
                 liw = li
                 break
         if liw:
+            logger.info('withdrawing invitation %s', liw.text)
             b = liw.find_element_by_xpath('.//button[contains(@data-control-name, "withdraw_single")]')
             b.click()
             pause()

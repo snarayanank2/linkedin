@@ -54,7 +54,13 @@ python -m linkedin test
 python -m linkedin salesnav search --search-id=<search-id>
 ```
 
-* Extract LinkedIn profiles from salesnav data
+* Follow with LinkedIn profiles from salesnav data
+
+```
+python -m linkedin salesnav follow --batch-size=200
+```
+
+* Connect with LinkedIn profiles from salesnav data
 
 ```
 python -m linkedin salesnav connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you'
