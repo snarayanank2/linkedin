@@ -57,17 +57,11 @@ python -m linkedin salesnav search --search-id=<search-id>
 * Extract LinkedIn profiles from salesnav data
 
 ```
-python -m linkedin salesnav get_profiles --batch-id=<batch-id>
-```
-
-* Connect with everybody in search result with templated message
-
-```
-python -m linkedin profiles connect --batch-id=<batch-id> --message-id=<message-id>
+python -m linkedin salesnav connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you'
 ```
 
 * To withdraw old invitations to connect
 ```
-python -m linkedin withdraw
+python -m linkedin invitations withdraw
 ```
 
