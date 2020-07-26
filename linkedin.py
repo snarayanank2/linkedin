@@ -228,9 +228,12 @@ def salesnav_connect(ctx, batch_size, message):
     salesnav = ctx.obj['salesnav']
     sb = ctx.obj['sb']
     for row in salesnav:
-        if row.get_field_value('invited_at') or row.get_field_value('failed_at'):
+        if row.get_field_value('invited_at') or row.get_field_value('invite_failed_at'):
             logger.info('skipping row %s', row.get_field_value('id'))
             continue
+        else:
+            logger.info('processing %s %s', row.get_field_value('id'), row.get_field_value('full_name'))
+
         first_name = row.get_field_value('first_name')
         note = message.format(first_name=first_name)
         salesnav_url = row.get_field_value('salesnav_url')
@@ -240,7 +243,7 @@ def salesnav_connect(ctx, batch_size, message):
         if connected:
             row.set_field_value('invited_at', dt_serialize(datetime.now()))
         else:
-            row.set_field_value('failed_at', dt_serialize(datetime.now()))
+            row.set_field_value('invite_failed_at', dt_serialize(datetime.now()))
         salesnav.commit()
         batch_size = batch_size - 1
         if batch_size <= 0:
@@ -280,16 +283,19 @@ def salesnav_follow(ctx, batch_size):
     salesnav = ctx.obj['salesnav']
     sb = ctx.obj['sb']
     for row in salesnav:
-        if row.get_field_value('followed_at') or row.get_field_value('failed_at'):
+        if row.get_field_value('followed_at') or row.get_field_value('follow_failed_at'):
             logger.info('skipping row %s', row.get_field_value('id'))
             continue
+        else:
+            logger.info('processing %s %s', row.get_field_value('id'), row.get_field_value('full_name'))
+
         salesnav_url = row.get_field_value('salesnav_url')
         profile_url, followed = __follow_salesnav(sb=sb, salesnav_url=salesnav_url)
         row.set_field_value('profile_url', profile_url)
         if followed:
             row.set_field_value('followed_at', dt_serialize(datetime.now()))
         else:
-            row.set_field_value('failed_at', dt_serialize(datetime.now()))
+            row.set_field_value('follow_failed_at', dt_serialize(datetime.now()))
         salesnav.commit()
         batch_size = batch_size - 1
         if batch_size <= 0:
@@ -329,17 +335,6 @@ def invitations_withdraw(ctx, start_page):
                 break
             else:
                 n.click()
-
-    # def follow_contact(self, sales_nav_url):
-    #     try:
-    #         self.__goto_li_profile(sales_nav_url=sales_nav_url)
-    #         self.b.click(xpath='//button/span[contains(text(), "More")]')
-    #         self.sleep(min=200, max=400)
-    #         self.b.click(xpath='//div[contains(@class, "pv-s-profile-actions--follow")]')
-    #     except Exception as e:
-    #         logger.exception('could not follow url %s', sales_nav_url)
-    #     finally:
-    #         self.b.close_windows()
 
     # def send_message(self, url, message):
     #     self.b.get(url)
