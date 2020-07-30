@@ -119,7 +119,7 @@ def __search_results_page_generator(sb):
         data['last_name'] = words[-1].lower().capitalize() if len(words) > 1 else None
         link = a.get_attribute('href')
         id = __salesnav_id_from_url(url=link)
-        data['sales_nav_url'] = link
+        data['salesnav_url'] = link
         data['id'] = id
         dds = dl.find_elements_by_xpath('./dd')
         data['title'] = dds[1].find_elements_by_xpath('./span')[0].text
