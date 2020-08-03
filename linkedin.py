@@ -34,6 +34,10 @@ def cli(ctx, gsheets_credentials, linkedin_username, linkedin_password, spreadsh
         spreadsheet=spreadsheet,
         sheet_name='salesnav'
     )
+    network = Table.get_table_from_sheet(
+        spreadsheet=spreadsheet,
+        sheet_name='network'
+    )
     sb = SimpleBrowser(browser='chrome', width=1536, height=864)
     sb.get('https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin')
     sb.input(xpath='//input[@id="username"]', keys=linkedin_username)
@@ -43,6 +47,7 @@ def cli(ctx, gsheets_credentials, linkedin_username, linkedin_password, spreadsh
     pause()
     ctx.obj['sb'] = sb
     ctx.obj['salesnav'] = salesnav
+    ctx.obj['network'] = network
 
 def dt_deserialize(v):
     """
@@ -107,7 +112,7 @@ def __company_id_from_url(url):
         return None
     return g[1]
 
-def __search_results_page_generator(sb):
+def __salesnav_search_results_page_generator(sb):
     dls = sb.find_many(xpath='//section[@class="result-lockup"]//dl')
     for dl in dls:
         data = {}
@@ -133,7 +138,7 @@ def __search_results_page_generator(sb):
             logger.exception('could not find element')
         yield data
 
-def __search_results_generator(sb, search_id):
+def __salesnav_search_results_generator(sb, search_id):
     sb.get(f'https://www.linkedin.com/sales/search/people?savedSearchId={search_id}')
     pause()
     sb.scroll_down_page()
@@ -143,7 +148,7 @@ def __search_results_generator(sb, search_id):
     results = []
     while not disabled:
         pause()
-        search_results = __search_results_page_generator(sb=sb)
+        search_results = __salesnav_search_results_page_generator(sb=sb)
         for sr in search_results:
             sr['search_id'] = search_id
             yield sr
@@ -160,7 +165,7 @@ def __search_results_generator(sb, search_id):
 def salesnav_search(ctx, search_id):
     salesnav = ctx.obj['salesnav']
     sb = ctx.obj['sb']
-    for sr in __search_results_generator(sb=sb, search_id=search_id):
+    for sr in __salesnav_search_results_generator(sb=sb, search_id=search_id):
         # TODO: check if this person is already in the table, if so, skip
         criterias = [{ 'id': sr['id']}]
         items = salesnav.select(criterias)
@@ -344,3 +349,80 @@ def invitations_withdraw(ctx, start_page):
     #     self.sleep()
     #     self.b.click(xpath='//button[@data-control-name="overlay.close_conversation_window"]')
     #     self.sleep()
+
+@cli.group()
+@click.pass_context
+def network(ctx):
+    pass
+
+def __network_search_results_page_generator(sb):
+    sb.scroll_down_page()
+    infos = sb.find_many('//div[contains(@class, "search-result__wrapper")]')
+    for info in infos:
+        a = info.find_element_by_xpath('./div[2]/a')
+        full_name = info.find_element_by_xpath('.//span[contains(@class, "actor-name")]').text
+        full_name = (full_name.split(',')[0]).lower().capitalize()
+        words = full_name.split(' ')
+        first_name = words[0].lower().capitalize()
+        last_name = words[-1].lower().capitalize() if len(words) > 1 else None
+        profile_url = a.get_attribute('href')
+        action = info.find_element_by_xpath('.//button[contains(@class, "search-result__action-button")]').text
+        # TODO: filter by action "Invite Sent"
+        location = info.find_element_by_xpath('.//p[contains(@class, "subline-level-2")]').text   
+        l1 = info.find_element_by_xpath('.//p[contains(@class, "subline-level-1")]').text
+        l1s = re.split(' at | of ', l1)
+        title = l1s[0]
+        company_name = l1s[1] if len(l1s) > 1 else None
+        try:
+            common_name = info.find_element_by_xpath('.//span[contains(@class, "search-result__social-proof-count")]/span[1]').text
+            sr = {
+                'profile_url': profile_url,
+                'full_name': full_name,
+                'first_name': first_name,
+                'last_name': last_name,
+                'title': title,
+                'company_name': company_name,
+                'location': location,
+                'common_name': common_name,
+                'action': action,
+            }
+            logger.info('adding sr %s', sr)
+            yield sr
+        except Exception:
+            logger.error('skipping %s because no common name', full_name)
+
+def __network_search_results_generator(sb, url, start_page):
+    search_url = url + f'&page={start_page}'
+    sb.get(search_url)
+    page = start_page
+    while True:
+        logger.info('processing page %s', page)
+        for sr in __network_search_results_page_generator(sb=sb):
+            yield sr
+        n = sb.find(xpath='//button[contains(@class, "artdeco-pagination__button--next")]')
+        disabled = n.get_attribute('disabled')
+        if disabled:
+            break
+        else:
+            page = page + 1
+            n.click()
+
+@network.command('search')
+@click.pass_context
+@click.option('--url', required=True, help='Copy search url that you want to save')
+@click.option('--start-page', default=1, help='Start extracting from this page')
+def network_search(ctx, url, start_page):
+    network = ctx.obj['network']
+    sb = ctx.obj['sb']
+    for sr in __network_search_results_generator(sb=sb, url=url, start_page=start_page):
+        # TODO: check if this person is already in the table, if so, skip
+        criterias = [{ 'profile_url': sr['profile_url']}]
+        items = network.select(criterias)
+        if len(items) > 0:
+            logger.info('item already exists.. updating action %s', sr)
+            items[0].set_field_value('action', sr['action'])
+            network.commit()
+        else:
+            logger.info('adding sr %s', sr)
+            network.add_one(sr)
+            network.commit()

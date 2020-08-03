@@ -45,29 +45,46 @@ Do not share these credentials
 * Run a test to check connectivity to data sheet
 
 ```
-python -m linkedin test
+linkedin test
 ```
 
 * Save search results to google sheet. Will skip out of network
 
 ```
-python -m linkedin salesnav search --search-id=<search-id>
+linkedin salesnav search --search-id=<search-id>
 ```
 
 * Follow with LinkedIn profiles from salesnav data
 
 ```
-python -m linkedin salesnav follow --batch-size=200
+linkedin salesnav follow --batch-size=200
 ```
 
 * Connect with LinkedIn profiles from salesnav data
 
 ```
-python -m linkedin salesnav connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you'
+linkedin salesnav connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you'
+```
+
+* Save search results on your network based on search url (TODO)
+```
+linkedin network search --url=""
+```
+
+* Follow people in your network (TODO)
+
+```
+linkedin network follow --batch-size=200
+```
+
+* Connect with people in your network (2nd degree only) (TODO)
+
+```
+linkedin network connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you. Both of us know {common_name}'
 ```
 
 * To withdraw old invitations to connect
 ```
-python -m linkedin invitations withdraw
+linkedin invitations withdraw
 ```
 
