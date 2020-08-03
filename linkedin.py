@@ -434,7 +434,6 @@ def __network_connect_profile(sb, profile_url, note):
     sb.get(profile_url)
     sb.scroll_down_page()
     sb.scroll_up_page()
-    pdb.set_trace()
     connected = False
     # sometimes there's a connect button and sometimes connect is in under More. First check if connect button exists
     try:
@@ -483,6 +482,7 @@ def network_connect(ctx, batch_size, message):
 
         first_name = row.get_field_value('first_name')
         common_name = row.get_field_value('common_name')
+        assert first_name and common_name, 'names are missing, aborting'
         note = message.format(first_name=first_name, common_name=common_name)
         profile_url = row.get_field_value('profile_url')
         connected = __network_connect_profile(sb=sb, profile_url=profile_url, note=note)
