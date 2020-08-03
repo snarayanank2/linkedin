@@ -491,7 +491,7 @@ def network_connect(ctx, batch_size, message):
             row.set_field_value('invited_at', dt_serialize(datetime.now()))
         else:
             row.set_field_value('invite_failed_at', dt_serialize(datetime.now()))
-        salesnav.commit()
+        network.commit()
         batch_size = batch_size - 1
         if batch_size <= 0:
             break
