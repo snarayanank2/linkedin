@@ -366,13 +366,14 @@ def __network_search_results_page_generator(sb):
         first_name = words[0].lower().capitalize()
         last_name = words[-1].lower().capitalize() if len(words) > 1 else None
         profile_url = a.get_attribute('href')
-        action = info.find_element_by_xpath('.//button[contains(@class, "search-result__action-button")]').text
+        action = info.find_element_by_xpath('.//button[contains(@class, "search-result__actions--primary")]').text
         # TODO: filter by action "Invite Sent"
         location = info.find_element_by_xpath('.//p[contains(@class, "subline-level-2")]').text   
         l1 = info.find_element_by_xpath('.//p[contains(@class, "subline-level-1")]').text
         l1s = re.split(' at | of ', l1)
         title = l1s[0]
         company_name = l1s[1] if len(l1s) > 1 else None
+        degree = info.find_element_by_xpath('.//span[contains(@class, "dist-value")]').text
         try:
             common_name = info.find_element_by_xpath('.//span[contains(@class, "search-result__social-proof-count")]/span[1]').text
             sr = {
@@ -385,6 +386,7 @@ def __network_search_results_page_generator(sb):
                 'location': location,
                 'common_name': common_name,
                 'action': action,
+                'degree': degree,
             }
             logger.info('adding sr %s', sr)
             yield sr
@@ -421,8 +423,76 @@ def network_search(ctx, url, start_page):
         if len(items) > 0:
             logger.info('item already exists.. updating action %s', sr)
             items[0].set_field_value('action', sr['action'])
+            items[0].set_field_value('degree', sr['degree'])
             network.commit()
         else:
             logger.info('adding sr %s', sr)
             network.add_one(sr)
             network.commit()
+
+def __network_connect_profile(sb, profile_url, note):
+    sb.get(profile_url)
+    sb.scroll_down_page()
+    sb.scroll_up_page()
+    pdb.set_trace()
+    connected = False
+    # sometimes there's a connect button and sometimes connect is in under More. First check if connect button exists
+    try:
+        try:
+            sb.click(xpath='//button[contains(@aria-label, "Connect with")]')
+            connected = True
+        except Exception as e:
+            logger.error('did not find connect button will try more..')
+
+        if not connected:
+            try:
+                sb.click(xpath='//button/span[contains(text(), "More")]')
+                pause(min=200, max=400)
+                sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--connect")]//span[contains(text(),"Connect")]')
+                connected = True
+            except Exception as e:
+                logger.error('could not connect.. failed')
+                return connected
+
+        assert connected
+        if note:
+            sb.click(xpath='//button[contains(@aria-label, "Add a note")]')
+            sb.input(xpath='//textarea[@name="message"]', keys=note)
+            sb.click(xpath='//button[contains(@aria-label, "Done")]')
+        else:
+            sb.click(xpath='//button[contains(@aria-label, "Send now")]')
+    except Exception as e:
+        connected = False
+        logger.exception('something unexpected happened at %s, skipping', profile_url)
+        return connected
+    return connected
+
+@network.command('connect')
+@click.pass_context
+@click.option('--batch-size', default=100, required=True, help='Number of people to connect with')
+@click.option('--message', required=True, help='Need a message to include when connecting')
+def network_connect(ctx, batch_size, message):
+    network = ctx.obj['network']
+    sb = ctx.obj['sb']
+    for row in network:
+        if row.get_field_value('degree') != '2nd' or row.get_field_value('invited_at') or row.get_field_value('invite_failed_at'):
+            logger.info('skipping row %s', row.get_field_value('full_name'))
+            continue
+        else:
+            logger.info('processing %s', row.get_field_value('full_name'))
+
+        first_name = row.get_field_value('first_name')
+        common_name = row.get_field_value('common_name')
+        note = message.format(first_name=first_name, common_name=common_name)
+        profile_url = row.get_field_value('profile_url')
+        connected = __network_connect_profile(sb=sb, profile_url=profile_url, note=note)
+        row.set_field_value('note', note)
+        if connected:
+            row.set_field_value('invited_at', dt_serialize(datetime.now()))
+        else:
+            row.set_field_value('invite_failed_at', dt_serialize(datetime.now()))
+        salesnav.commit()
+        batch_size = batch_size - 1
+        if batch_size <= 0:
+            break
+    pause(min=4000, max=8000)
