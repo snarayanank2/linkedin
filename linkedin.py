@@ -242,7 +242,7 @@ def network(ctx):
 @network.command('search')
 @click.pass_context
 @click.option('--url', required=True, help='Search url')
-@click.option('--start-page', required=True, help='Start page')
+@click.option('--start-page', default=1, required=True, help='Start page')
 @click.option('--num-pages', default=1, required=True, help='Number of pages to extract from')
 def network_search(ctx, url, start_page, num_pages):
     network = ctx.obj['network']
@@ -252,7 +252,7 @@ def network_search(ctx, url, start_page, num_pages):
         criterias = [{ 'profile_url': sr['profile_url']}]
         items = network.select(criterias)
         if len(items) > 0:
-            logger.info('item already exists.. updating action %s', sr)
+            logger.info('item already exists.. updating action %s', sr['full_name'])
             items[0].set_field_value('action', sr['action'])
             items[0].set_field_value('degree', sr['degree'])
             network.commit()
@@ -270,7 +270,7 @@ def network_connect(ctx, batch_size, message):
     network = ctx.obj['network']
     li = ctx.obj['li']
     for row in network:
-        if row.get_field_value('degree') != '2nd' or row.get_field_value('invited_at') or row.get_field_value('invite_failed_at'):
+        if row.get_field_value('action') == 'Invite Sent' or row.get_field_value('degree') != '2nd' or row.get_field_value('invited_at') or row.get_field_value('invite_failed_at'):
             logger.info('skipping row %s', row.get_field_value('full_name'))
             continue
         else:

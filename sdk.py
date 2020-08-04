@@ -57,14 +57,14 @@ class LinkedIn:
 
     def salesnav_search(self, url: str, start_page: int, num_pages: int) -> Generator[SalesNavSearchResult, None, None]:
         assert num_pages > 0
-        current_page = start_page
+        current_page: int = start_page
         self.sb.get(f'{url}&page={current_page}')
         while True:
             logger.info('processing page %s', current_page)
             for sr in self.__salesnav_search_page():
                 yield sr
             current_page = current_page + 1
-            if current_page > start_page + num_pages:
+            if current_page >= start_page + num_pages:
                 break
             n = self.sb.find(xpath='//button[@class="search-results__pagination-next-button"]', scroll=True)
             disabled = n.get_attribute('disabled')
@@ -110,15 +110,15 @@ class LinkedIn:
             except Exception:
                 logger.error('skipping %s because no common name', full_name)
 
-    def network_search(self, search_url: str, start_page: int, num_pages: int) -> Generator[NetworkSearchResult, None, None]:
-        current_page = start_page
-        self.sb.get(f'{search_url}&page={current_page}')
+    def network_search(self, url: str, start_page: int, num_pages: int) -> Generator[NetworkSearchResult, None, None]:
+        current_page: int = start_page
+        self.sb.get(f'{url}&page={current_page}')
         while True:
             logger.info('processing page %s', current_page)
             for sr in self.__network_search_page():
                 yield sr
             current_page = current_page + 1
-            if current_page > start_page + num_pages:
+            if current_page >= start_page + num_pages:
                 break
             n = self.sb.find(xpath='//button[contains(@class, "artdeco-pagination__button--next")]')
             disabled = n.get_attribute('disabled')
