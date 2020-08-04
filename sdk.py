@@ -17,7 +17,7 @@ def pause(min=600, max=8000):
     s = (random.randint(min, max) * 1.0) / 1000.0
     time.sleep(s)
 
-class LinkedInSDK:
+class LinkedIn:
 
     def __init__(self):
         self.sb = SimpleBrowser(browser='chrome', width=1536, height=864)
