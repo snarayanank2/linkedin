@@ -51,13 +51,13 @@ linkedin test
 * Save search results to google sheet. Will skip out of network
 
 ```
-linkedin salesnav search --search-id=<search-id>
+linkedin salesnav search --url=<search-url> --start-page=2 --num-pages=4
 ```
 
 * Follow with LinkedIn profiles from salesnav data
 
 ```
-linkedin salesnav follow --batch-size=200
+linkedin salesnav follow --batch-size=100
 ```
 
 * Connect with LinkedIn profiles from salesnav data
@@ -66,25 +66,24 @@ linkedin salesnav follow --batch-size=200
 linkedin salesnav connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you'
 ```
 
-* Save search results on your network based on search url (TODO)
+* Save search results on your network based on search url
 ```
-linkedin network search --url=""
+linkedin network search --url=<search-url> --start-page=2 --num-pages=4
 ```
 
 * Follow people in your network (TODO)
 
 ```
-linkedin network follow --batch-size=200
+linkedin network follow --batch-size=100
 ```
 
-* Connect with people in your network (2nd degree only) (TODO)
+* Connect with people in your network (2nd degree only)
 
 ```
 linkedin network connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you. Both of us know {common_name}'
 ```
 
-* To withdraw old invitations to connect
+* To withdraw old invitations to connect (TODO: This is currently broken)
 ```
 linkedin invitations withdraw
 ```
-

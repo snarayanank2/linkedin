@@ -30,7 +30,7 @@ class LinkedIn:
         self.sb.click(xpath='//button[contains(text(), "Sign in")]')
         pause()
 
-    def __salesnav_search_results_page(self) -> Generator[SalesNavSearchResult, None, None]:
+    def __salesnav_search_page(self) -> Generator[SalesNavSearchResult, None, None]:
         self.sb.scroll_down_page()
         dls = self.sb.find_many(xpath='//section[@class="result-lockup"]//dl')
         for dl in dls:
@@ -55,13 +55,13 @@ class LinkedIn:
                 logger.exception('could not find element')
             yield data
 
-    def salesnav_search_results(self, search_url: int, start_page: int, num_pages: int) -> Generator[SalesNavSearchResult, None, None]:
+    def salesnav_search(self, url: str, start_page: int, num_pages: int) -> Generator[SalesNavSearchResult, None, None]:
         assert num_pages > 0
         current_page = start_page
-        self.sb.get(f'{search_url}&page={current_page}')
+        self.sb.get(f'{url}&page={current_page}')
         while True:
             logger.info('processing page %s', current_page)
-            for sr in self.__salesnav_search_results_page():
+            for sr in self.__salesnav_search_page():
                 yield sr
             current_page = current_page + 1
             if current_page > start_page + num_pages:
@@ -73,7 +73,7 @@ class LinkedIn:
             else:
                 n.click()
 
-    def __network_search_results_page(self) -> Generator[NetworkSearchResult, None, None]:
+    def __network_search_page(self) -> Generator[NetworkSearchResult, None, None]:
         self.sb.scroll_down_page()
         infos = self.sb.find_many('//div[contains(@class, "search-result__wrapper")]')
         for info in infos:
@@ -110,12 +110,12 @@ class LinkedIn:
             except Exception:
                 logger.error('skipping %s because no common name', full_name)
 
-    def network_search_results(self, search_url: str, start_page: int, num_pages: int) -> Generator[NetworkSearchResult, None, None]:
+    def network_search(self, search_url: str, start_page: int, num_pages: int) -> Generator[NetworkSearchResult, None, None]:
         current_page = start_page
         self.sb.get(f'{search_url}&page={current_page}')
         while True:
             logger.info('processing page %s', current_page)
-            for sr in self.__network_search_results_page():
+            for sr in self.__network_search_page():
                 yield sr
             current_page = current_page + 1
             if current_page > start_page + num_pages:
@@ -197,7 +197,7 @@ class LinkedIn:
     def profile_connect(self, profile_url: str, note: str) -> ProfileDetails:
         self.sb.get(profile_url)
         res = self.__profile_get_details()
-        self.__profile_connect()
+        self.__profile_connect(note=note)
         return res
 
     def profile_follow(self, profile_url: str) -> ProfileDetails:
