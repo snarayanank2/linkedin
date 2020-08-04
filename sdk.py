@@ -127,13 +127,81 @@ class LinkedIn:
             else:
                 n.click()
 
-    def get_profile_details(self, salesnav_url: str, profile_url: str) -> ProfileDetails:
-        res: ProfileDetails = {}
+    def __salesnav_goto_profile(self, salesnav_url: str):
+        self.sb.get(salesnav_url)
+        self.sb.click(xpath='//button[contains(@class, "right-actions-overflow-menu-trigger")]')
+        pause(min=200, max=400)
+        self.sb.click(xpath='//div[@data-control-name="view_linkedin"]')
+        pause(min=500, max=1000)
+        # this is one weird thing.. linkedin.com opens in new tab so we need to switch to it
+        # TODO: move this functionality to simplebrowser
+        self.sb.driver.switch_to.window(sb.driver.window_handles[1])
+
+    def __profile_get_details(self):
+        # TODO: extract more things
+        profile_url = self.sb.get_current_url()
+        res: ProfileDetails = {
+            'profile_url': profile_url
+        }
         return res
-        raise NotImplementedError()
 
-    def connect_profile(self, profile_url: str, note: str):
-        raise NotImplementedError()
+    def __profile_connect(self, note: str):
+        # TODO: assert that we are in a profile page
+        self.sb.scroll_down_page()
+        self.sb.scroll_up_page()
+        connected = False
+        try:
+            self.sb.click(xpath='//button[contains(@aria-label, "Connect with")]')
+            connected = True
+        except Exception as e:
+            logger.error('did not find connect button will try more..')
 
-    def follow_profile(self, profile_url: str):
-        raise NotImplementedError()
+        if not connected:
+            self.sb.click(xpath='//button/span[contains(text(), "More")]')
+            pause(min=200, max=400)
+            self.sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--connect")]//span[contains(text(),"Connect")]')
+            connected = True
+
+        assert connected
+        if note:
+            self.sb.click(xpath='//button[contains(@aria-label, "Add a note")]')
+            self.sb.input(xpath='//textarea[@name="message"]', keys=note)
+            self.sb.click(xpath='//button[contains(@aria-label, "Done")]')
+        else:
+            self.sb.click(xpath='//button[contains(@aria-label, "Send now")]')
+
+    def __profile_follow(self):
+        # TODO: assert that we are in a profile page
+        self.sb.click(xpath='//button/span[contains(text(), "More")]')
+        pause(min=200, max=400)
+        self.sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(text(),"Follow")]')
+
+    def salesnav_connect(self, salesnav_url: str, note: str) -> ProfileDetails:
+        self.__salesnav_goto_profile(salesnav_url)
+        try:
+            res = self.__profile_get_details()
+            self.__profile_connect()
+        finally:
+            self.sb.close_windows()
+        return res
+
+    def salesnav_follow(self, salesnav_url: str) -> ProfileDetails:
+        self.__salesnav_goto_profile(salesnav_url)
+        try:
+            res = self.__profile_get_details()
+            self.__profile_follow()
+        finally:
+            self.sb.close_windows()
+        return res
+
+    def profile_connect(self, profile_url: str, note: str) -> ProfileDetails:
+        self.sb.get(profile_url)
+        res = self.__profile_get_details()
+        self.__profile_connect()
+        return res
+
+    def profile_follow(self, profile_url: str) -> ProfileDetails:
+        self.sb.get(profile_url)
+        res = self.__profile_get_details()
+        self.__profile_follow()
+        return res
