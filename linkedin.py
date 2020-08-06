@@ -97,7 +97,7 @@ def salesnav_list(ctx):
 @salesnav.command('search')
 @click.pass_context
 @click.option('--url', required=True, help='Search url')
-@click.option('--start-page', required=True, help='Start page')
+@click.option('--start-page', default=1, required=True, help='Start page')
 @click.option('--num-pages', default=1, required=True, help='Number of pages to extract from')
 def salesnav_search(ctx, url, start_page, num_pages):
     salesnav = ctx.obj['salesnav']
@@ -123,10 +123,10 @@ def salesnav_connect(ctx, batch_size, message):
     li = ctx.obj['li']
     for row in salesnav:
         if row.get_field_value('invited_at') or row.get_field_value('invite_failed_at'):
-            logger.info('skipping row %s', row.get_field_value('id'))
+            logger.info('skipping row %s', row.get_field_value('full_name'))
             continue
         else:
-            logger.info('processing %s %s', row.get_field_value('id'), row.get_field_value('full_name'))
+            logger.info('processing %s', row.get_field_value('full_name'))
 
         first_name = row.get_field_value('first_name')
         note = message.format(first_name=first_name)
@@ -138,7 +138,7 @@ def salesnav_connect(ctx, batch_size, message):
             profile_url = res['profile_url']
             connected = True
         except Exception:
-            logger.info('skipping %s', first_name)
+            logger.exception('skipping %s', first_name)
 
         row.set_field_value('note', note)
         row.set_field_value('profile_url', profile_url)
@@ -161,10 +161,10 @@ def salesnav_follow(ctx, batch_size):
     li = ctx.obj['li']
     for row in salesnav:
         if row.get_field_value('followed_at') or row.get_field_value('follow_failed_at'):
-            logger.info('skipping row %s', row.get_field_value('id'))
+            logger.info('skipping row %s', row.get_field_value('full_name'))
             continue
         else:
-            logger.info('processing %s %s', row.get_field_value('id'), row.get_field_value('full_name'))
+            logger.info('processing %s ', row.get_field_value('full_name'))
 
         salesnav_url = row.get_field_value('salesnav_url')
 
@@ -175,8 +175,7 @@ def salesnav_follow(ctx, batch_size):
             profile_url = res['profile_url']
             followed = True
         except Exception:
-            logger.info('skipping %s', first_name)
-
+            logger.exception('skipping due to exception')
 
         row.set_field_value('profile_url', profile_url)
 
@@ -185,10 +184,12 @@ def salesnav_follow(ctx, batch_size):
         else:
             row.set_field_value('follow_failed_at', dt_serialize(datetime.now()))
         salesnav.commit()
+        pause()
         batch_size = batch_size - 1
         if batch_size <= 0:
             break
-    pause(min=4000, max=8000)
+        pause(min=600, max=2000)
+    pause(min=4000, max=6000)
 
 @cli.group()
 @click.pass_context
@@ -198,41 +199,11 @@ def invitations(ctx):
 @invitations.command('withdraw')
 @click.pass_context
 @click.option('--start-page', default=4, required=True, help='Start withdrawing invitations from this page')
-def invitations_withdraw(ctx, start_page):
-    # TODO: this doesnt work
-    sb = ctx.obj['sb']
-    sb.get(f'https://www.linkedin.com/mynetwork/invitation-manager/sent/?invitationType=&page={start_page}')
-    while True:
-        pause()
-        lis = sb.find_many(xpath='//li[contains(@class, "invitation-card")]')
-        liw = None
-        for li in lis:
-            t = li.find_element_by_xpath('.//time').text
-            if 'week' in t:
-                liw = li
-                break
-        if liw:
-            logger.info('withdrawing invitation %s', liw.text)
-            b = liw.find_element_by_xpath('.//button[contains(@data-control-name, "withdraw_single")]')
-            b.click()
-            pause()
-            sb.click(xpath='//button[contains(@class, "artdeco-button--primary")]')
-            pause()
-        else:
-            n = sb.find(xpath='//button[contains(@class, "artdeco-pagination__button--next")]')
-            if n.get_attribute('disabled'):
-                break
-            else:
-                n.click()
-
-    # def send_message(self, url, message):
-    #     self.b.get(url)
-    #     self.b.click(xpath='//a[text()="Message"]')
-    #     self.b.input(xpath='//div[@aria-label="Write a message…"]', keys=message)
-    #     self.b.click(xpath='//button[text()="Send"]')
-    #     self.sleep()
-    #     self.b.click(xpath='//button[@data-control-name="overlay.close_conversation_window"]')
-    #     self.sleep()
+@click.option('--batch-size', default=1, required=True, help='Number of withdrawals')
+def invitations_withdraw(ctx, start_page, batch_size):
+    li = ctx.obj['li']
+    li.invitations_withdraw(start_page=start_page, batch_size=batch_size)
+    pause(min=4000, max=6000)
 
 @cli.group()
 @click.pass_context

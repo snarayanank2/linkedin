@@ -90,13 +90,14 @@ class SimpleBrowser:
         return self.driver.execute_script("return window.pageYOffset")
 
     def scroll_down_page(self, max_speed=300):
-        current_scroll_position, new_height= 0, 1
-        while current_scroll_position <= new_height:
+        pos = self.current_scroll_position()
+        height = 1
+        while pos < height:
             delta = random.randint(1, max_speed)
-            current_scroll_position += delta
-            self.driver.execute_script(f'window.scrollTo(0, {current_scroll_position});')
+            pos += delta
+            self.driver.execute_script(f'window.scrollTo(0, {pos});')
             time.sleep(random.uniform(0.0, 1.0))
-            new_height = self.current_height()
+            height = self.current_height()
 
     def scroll_up_page(self, max_speed=300):
         pos = self.current_scroll_position()

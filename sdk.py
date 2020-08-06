@@ -47,7 +47,6 @@ class LinkedIn:
             data['title'] = dds[1].find_elements_by_xpath('./span')[0].text
             data['company'] = dds[1].find_element_by_xpath('./span/span/a/span').text
             data['company_url'] = dds[1].find_element_by_xpath('./span/span/a').get_attribute('href')
-            data['company_id'] = __company_id_from_url(url=data['company_url'])
             try:
                 data['location'] = dds[3].find_element_by_xpath('./ul/li').text
                 data['experience'] = dds[2].find_element_by_xpath('./span').text
@@ -130,12 +129,12 @@ class LinkedIn:
     def __salesnav_goto_profile(self, salesnav_url: str):
         self.sb.get(salesnav_url)
         self.sb.click(xpath='//button[contains(@class, "right-actions-overflow-menu-trigger")]')
-        pause(min=200, max=400)
+        pause(min=200, max=300)
         self.sb.click(xpath='//div[@data-control-name="view_linkedin"]')
         pause(min=500, max=1000)
         # this is one weird thing.. linkedin.com opens in new tab so we need to switch to it
         # TODO: move this functionality to simplebrowser
-        self.sb.driver.switch_to.window(sb.driver.window_handles[1])
+        self.sb.driver.switch_to.window(self.sb.driver.window_handles[1])
 
     def __profile_get_details(self):
         # TODO: extract more things
@@ -172,15 +171,24 @@ class LinkedIn:
 
     def __profile_follow(self):
         # TODO: assert that we are in a profile page
-        self.sb.click(xpath='//button/span[contains(text(), "More")]')
-        pause(min=200, max=400)
-        self.sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(text(),"Follow")]')
+        followed = False
+        try:
+            self.sb.click(xpath='//button[contains(@aria-label, "Follow")]')
+            followed = True
+        except Exception as e:
+            logger.error('did not find follow button will try more..')
+
+        if not followed:
+            self.sb.click(xpath='//button/span[contains(text(), "More")]')
+            pause(min=200, max=400)
+            self.sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(text(),"Follow")]')
 
     def salesnav_connect(self, salesnav_url: str, note: str) -> ProfileDetails:
+#        pdb.set_trace()
         self.__salesnav_goto_profile(salesnav_url)
         try:
             res = self.__profile_get_details()
-            self.__profile_connect()
+            self.__profile_connect(note=note)
         finally:
             self.sb.close_windows()
         return res
@@ -205,3 +213,29 @@ class LinkedIn:
         res = self.__profile_get_details()
         self.__profile_follow()
         return res
+
+    def invitations_withdraw(self, start_page: int, batch_size: int):
+        self.sb.get(f'https://www.linkedin.com/mynetwork/invitation-manager/sent/?invitationType=&page={start_page}')
+        c: int = 0
+        while c < batch_size:
+            self.sb.scroll_down_page()
+            lis = self.sb.find_many(xpath='//li[contains(@class, "invitation-card")]')
+            liw = None
+            for li in reversed(lis):
+                t = li.find_element_by_xpath('.//time').text
+                if 'week' in t and li.is_displayed():
+                    liw = li
+                    break
+            if liw:
+                logger.info('withdrawing number %s invitation %s', c, liw.text)
+                b = liw.find_element_by_xpath('.//button[contains(@data-control-name, "withdraw_single")]')
+                b.click()
+                pause(min=200, max=500)
+                self.sb.click(xpath='//button[contains(@class, "artdeco-button--primary")]')
+            else:
+                n = self.sb.find(xpath='//button[contains(@class, "artdeco-pagination__button--next")]')
+                if n.get_attribute('disabled'):
+                    break
+                else:
+                    n.click()
+            c = c + 1
