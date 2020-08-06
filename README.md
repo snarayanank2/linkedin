@@ -83,7 +83,7 @@ linkedin network follow --batch-size=100
 linkedin network connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you. Both of us know {common_name}'
 ```
 
-* To withdraw old invitations to connect (TODO: This is currently broken)
+* To withdraw old invitations using page number
 ```
-linkedin invitations withdraw
+linkedin invitations withdraw --page=10
 ```

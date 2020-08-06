@@ -214,28 +214,22 @@ class LinkedIn:
         self.__profile_follow()
         return res
 
-    def invitations_withdraw(self, start_page: int, batch_size: int):
-        self.sb.get(f'https://www.linkedin.com/mynetwork/invitation-manager/sent/?invitationType=&page={start_page}')
-        c: int = 0
-        while c < batch_size:
+    def invitations_withdraw(self, page: int):
+        self.sb.get(f'https://www.linkedin.com/mynetwork/invitation-manager/sent/?invitationType=&page={page}')
+        self.sb.scroll_down_page()
+        lis = self.sb.find_many(xpath='//li[contains(@class, "invitation-card")]')
+        liws = reversed(lis)
+
+        # for li in reversed(lis):
+        #     t = li.find_element_by_xpath('.//time').text
+        #     if 'week' in t and li.is_displayed():
+        #         liws.append(li)
+
+        for liw in liws:
             self.sb.scroll_down_page()
-            lis = self.sb.find_many(xpath='//li[contains(@class, "invitation-card")]')
-            liw = None
-            for li in reversed(lis):
-                t = li.find_element_by_xpath('.//time').text
-                if 'week' in t and li.is_displayed():
-                    liw = li
-                    break
-            if liw:
-                logger.info('withdrawing number %s invitation %s', c, liw.text)
-                b = liw.find_element_by_xpath('.//button[contains(@data-control-name, "withdraw_single")]')
-                b.click()
-                pause(min=200, max=500)
-                self.sb.click(xpath='//button[contains(@class, "artdeco-button--primary")]')
-            else:
-                n = self.sb.find(xpath='//button[contains(@class, "artdeco-pagination__button--next")]')
-                if n.get_attribute('disabled'):
-                    break
-                else:
-                    n.click()
-            c = c + 1
+            logger.info('withdrawing invitation %s', liw.text)
+            b = liw.find_element_by_xpath('.//button[contains(@data-control-name, "withdraw_single")]')
+            b.click()
+            pause(min=500, max=1000)
+            self.sb.click(xpath='//button[contains(@class, "artdeco-button--primary")]')
+            pause(min=1000, max=2000)

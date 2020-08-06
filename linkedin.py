@@ -198,11 +198,10 @@ def invitations(ctx):
 
 @invitations.command('withdraw')
 @click.pass_context
-@click.option('--start-page', default=4, required=True, help='Start withdrawing invitations from this page')
-@click.option('--batch-size', default=1, required=True, help='Number of withdrawals')
-def invitations_withdraw(ctx, start_page, batch_size):
+@click.option('--page', default=4, required=True, help='Withdraw all invitations in page')
+def invitations_withdraw(ctx, page):
     li = ctx.obj['li']
-    li.invitations_withdraw(start_page=start_page, batch_size=batch_size)
+    li.invitations_withdraw(page=page)
     pause(min=4000, max=6000)
 
 @cli.group()
