@@ -96,7 +96,7 @@ class SimpleBrowser:
             delta = random.randint(1, max_speed)
             pos += delta
             self.driver.execute_script(f'window.scrollTo(0, {pos});')
-            time.sleep(random.uniform(0.0, 1.0))
+            time.sleep(random.uniform(0.3, 1.0))
             height = self.current_height()
 
     def scroll_up_page(self, max_speed=300):
@@ -107,7 +107,7 @@ class SimpleBrowser:
             if pos < 0:
                 pos = 0
             self.driver.execute_script(f'window.scrollTo(0, {pos});')
-            time.sleep(random.uniform(0.0, 1.0))
+            time.sleep(random.uniform(0.3, 1.0))
  
     def find(self, xpath, scroll=False):
         l = self.wait.until(EC.presence_of_element_located((By.XPATH, xpath)))

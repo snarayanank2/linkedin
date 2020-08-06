@@ -31,6 +31,7 @@ class LinkedIn:
         pause()
 
     def __salesnav_search_page(self) -> Generator[SalesNavSearchResult, None, None]:
+        pause()
         self.sb.scroll_down_page()
         dls = self.sb.find_many(xpath='//section[@class="result-lockup"]//dl')
         for dl in dls:

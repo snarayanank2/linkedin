@@ -107,9 +107,9 @@ def salesnav_search(ctx, url, start_page, num_pages):
         criterias = [{ 'salesnav_url': sr['salesnav_url']}]
         items = salesnav.select(criterias)
         if len(items) > 0:
-            logger.info('item already exists.. skipping %s', sr)
+            logger.info('item already exists.. skipping %s', sr['full_name'])
         else:
-            logger.info('adding sr %s', sr)
+            logger.info('adding sr %s', sr['full_name'])
             salesnav.add_one(sr)
             salesnav.commit()
 
