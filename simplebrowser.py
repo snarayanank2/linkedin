@@ -141,7 +141,7 @@ class SimpleBrowser:
         l = self.wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
         l.click()
         for c in keys:
-            time.sleep(0.05)
+            time.sleep(random.uniform(0.01, 0.04))
             l.send_keys(c)
         return l
 
