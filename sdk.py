@@ -72,7 +72,7 @@ def parse_profile_details(page_source: str):
 class LinkedIn:
 
     def __init__(self):
-        self.sb = SimpleBrowser(browser='chrome', width=1536, height=864)
+        self.sb = SimpleBrowser(browser='chrome', width=1920, height=1080)
 
     def login(self, username: str, password: str):
         self.sb.get('https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin')
