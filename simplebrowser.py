@@ -140,10 +140,9 @@ class SimpleBrowser:
                         'a', 'div', 'textarea'], 'xpath did not return proper element'
         l = self.wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
         l.click()
-        for c in keys:
-            l.send_keys(c)
-            s = (random.randint(300, 600) * 1.0) / 1000.0
-            time.sleep(s)
+        time.sleep(0.1)
+        l.send_keys(keys)
+        time.sleep(0.1)
         return l
 
     def close_windows(self):
