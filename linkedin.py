@@ -32,15 +32,10 @@ def cli(ctx, gsheets_credentials, linkedin_username, linkedin_password, spreadsh
         spreadsheet=spreadsheet,
         sheet_name='salesnav'
     )
-    network = Table.get_table_from_sheet(
-        spreadsheet=spreadsheet,
-        sheet_name='network'
-    )
     li = LinkedIn()
     li.login(username=linkedin_username, password=linkedin_password)
     ctx.obj['li'] = li
     ctx.obj['salesnav'] = salesnav
-    ctx.obj['network'] = network
 
 def dt_deserialize(v):
     """
@@ -204,65 +199,3 @@ def invitations_withdraw(ctx, page):
     li.invitations_withdraw(page=page)
     pause(min=4000, max=6000)
 
-@cli.group()
-@click.pass_context
-def network(ctx):
-    pass
-
-@network.command('search')
-@click.pass_context
-@click.option('--url', required=True, help='Search url')
-@click.option('--start-page', default=1, required=True, help='Start page')
-@click.option('--num-pages', default=1, required=True, help='Number of pages to extract from')
-def network_search(ctx, url, start_page, num_pages):
-    network = ctx.obj['network']
-    li = ctx.obj['li']
-    for sr in li.network_search(url=url, start_page=start_page, num_pages=num_pages):
-        # TODO: check if this person is already in the table, if so, skip
-        criterias = [{ 'profile_url': sr['profile_url']}]
-        items = network.select(criterias)
-        if len(items) > 0:
-            logger.info('item already exists.. updating action %s', sr['full_name'])
-            items[0].set_field_value('action', sr['action'])
-            items[0].set_field_value('degree', sr['degree'])
-            network.commit()
-        else:
-            logger.info('adding sr %s', sr)
-            network.add_one(sr)
-            network.commit()
-
-
-@network.command('connect')
-@click.pass_context
-@click.option('--batch-size', default=100, required=True, help='Number of people to connect with')
-@click.option('--message', required=True, help='Need a message to include when connecting')
-def network_connect(ctx, batch_size, message):
-    network = ctx.obj['network']
-    li = ctx.obj['li']
-    for row in network:
-        if row.get_field_value('action') == 'Invite Sent' or row.get_field_value('degree') != '2nd' or row.get_field_value('invited_at') or row.get_field_value('invite_failed_at'):
-            logger.info('skipping row %s', row.get_field_value('full_name'))
-            continue
-        else:
-            logger.info('processing %s', row.get_field_value('full_name'))
-
-        first_name = row.get_field_value('first_name')
-        common_name = row.get_field_value('common_name')
-        assert first_name and common_name, 'names are missing, aborting'
-        note = message.format(first_name=first_name, common_name=common_name)
-        profile_url = row.get_field_value('profile_url')
-        connected = False
-        try:
-            connected = li.profile_connect(profile_url=profile_url, note=note)
-        except Exception:
-            logger.exception('couldnt connect')
-        row.set_field_value('note', note)
-        if connected:
-            row.set_field_value('invited_at', dt_serialize(datetime.now()))
-        else:
-            row.set_field_value('invite_failed_at', dt_serialize(datetime.now()))
-        network.commit()
-        batch_size = batch_size - 1
-        if batch_size <= 0:
-            break
-    pause(min=4000, max=8000)

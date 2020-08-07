@@ -1,21 +1,49 @@
 from simplebrowser import SimpleBrowser
 from typing import Generator, Dict
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import pdb
 import re
 import time
 import random
 import logging
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-SalesNavSearchResult = Dict[str, str]
-NetworkSearchResult = Dict[str, str]
-ProfileDetails = Dict[str, str]
 
 def pause(min=600, max=8000):
     s = (random.randint(min, max) * 1.0) / 1000.0
     time.sleep(s)
+
+def parse_salesnav_search(page_source: str):
+    pdb.set_trace()
+    soup = BeautifulSoup(page_source, 'html.parser')
+    
+    res = []
+    # TODO: implement this
+    return res
+
+def parse_salesnav_details(page_source: str):
+    soup = BeautifulSoup(page_source, 'html.parser')
+    degree = soup.find("span", "label-16dp").string.strip()
+    common_name = None
+    common_div = soup.find("li", "best-path-in").find("div", "best-path-in-entity__spotlight")
+    if common_div:
+        common_name = common_div.find("a").string.strip()
+    connect_status_li = soup.find("div", "profile-topcard-actions__overflow-dropdown").div.ul.li
+    if connect_status_li.div:
+        connect_status = 'Connect'
+    else:
+        connect_status = 'Pending'
+    return {
+        'degree': degree,
+        'common_name': common_name,
+        'connect_status': connect_status
+    }
+
+def parse_profile_details(page_source: str):
+    # TODO: implement this
+    return {}
 
 class LinkedIn:
 
@@ -30,12 +58,12 @@ class LinkedIn:
         self.sb.click(xpath='//button[contains(text(), "Sign in")]')
         pause()
 
-    def __salesnav_search_page(self) -> Generator[SalesNavSearchResult, None, None]:
+    def __salesnav_search_page(self):
         pause()
         self.sb.scroll_down_page()
         dls = self.sb.find_many(xpath='//section[@class="result-lockup"]//dl')
         for dl in dls:
-            data: SalesNavSearchResult = {}
+            data = {}
             a = dl.find_element_by_xpath('./dt/a')
             data['full_name'] = a.text
             data['full_name'] = (data['full_name'].split(',')[0]).lower().capitalize()
@@ -55,7 +83,7 @@ class LinkedIn:
                 logger.exception('could not find element')
             yield data
 
-    def salesnav_search(self, url: str, start_page: int, num_pages: int) -> Generator[SalesNavSearchResult, None, None]:
+    def salesnav_search(self, url: str, start_page: int, num_pages: int):
         assert num_pages > 0
         current_page: int = start_page
         self.sb.get(f'{url}&page={current_page}')
@@ -73,62 +101,7 @@ class LinkedIn:
             else:
                 n.click()
 
-    def __network_search_page(self) -> Generator[NetworkSearchResult, None, None]:
-        self.sb.scroll_down_page()
-        infos = self.sb.find_many('//div[contains(@class, "search-result__wrapper")]')
-        for info in infos:
-            a = info.find_element_by_xpath('./div[2]/a')
-            full_name = info.find_element_by_xpath('.//span[contains(@class, "actor-name")]').text
-            full_name = (full_name.split(',')[0]).lower().capitalize()
-            words = full_name.split(' ')
-            first_name = words[0].lower().capitalize()
-            last_name = words[-1].lower().capitalize() if len(words) > 1 else None
-            profile_url = a.get_attribute('href')
-            action = info.find_element_by_xpath('.//button[contains(@class, "search-result__actions--primary")]').text
-            location = info.find_element_by_xpath('.//p[contains(@class, "subline-level-2")]').text   
-            l1 = info.find_element_by_xpath('.//p[contains(@class, "subline-level-1")]').text
-            l1s = re.split(' at | of ', l1)
-            title = l1s[0]
-            company_name = l1s[1] if len(l1s) > 1 else None
-            degree = info.find_element_by_xpath('.//span[contains(@class, "dist-value")]').text
-            try:
-                common_name = info.find_element_by_xpath('.//span[contains(@class, "search-result__social-proof-count")]/span[1]').text
-                sr: NetworkSearchResult = {
-                    'profile_url': profile_url,
-                    'full_name': full_name,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'title': title,
-                    'company_name': company_name,
-                    'location': location,
-                    'common_name': common_name,
-                    'action': action,
-                    'degree': degree,
-                }
-                logger.info('adding sr %s', sr)
-                yield sr
-            except Exception:
-                logger.error('skipping %s because no common name', full_name)
-
-    def network_search(self, url: str, start_page: int, num_pages: int) -> Generator[NetworkSearchResult, None, None]:
-        current_page: int = start_page
-        self.sb.get(f'{url}&page={current_page}')
-        while True:
-            logger.info('processing page %s', current_page)
-            for sr in self.__network_search_page():
-                yield sr
-            current_page = current_page + 1
-            if current_page >= start_page + num_pages:
-                break
-            n = self.sb.find(xpath='//button[contains(@class, "artdeco-pagination__button--next")]')
-            disabled = n.get_attribute('disabled')
-            if disabled:
-                break
-            else:
-                n.click()
-
-    def __salesnav_goto_profile(self, salesnav_url: str):
-        self.sb.get(salesnav_url)
+    def __salesnav_goto_profile(self):
         self.sb.click(xpath='//button[contains(@class, "right-actions-overflow-menu-trigger")]')
         pause(min=200, max=300)
         self.sb.click(xpath='//div[@data-control-name="view_linkedin"]')
@@ -137,13 +110,6 @@ class LinkedIn:
         # TODO: move this functionality to simplebrowser
         self.sb.driver.switch_to.window(self.sb.driver.window_handles[1])
 
-    def __profile_get_details(self):
-        # TODO: extract more things
-        profile_url = self.sb.get_current_url()
-        res: ProfileDetails = {
-            'profile_url': profile_url
-        }
-        return res
 
     def __profile_connect(self, note: str):
         # TODO: assert that we are in a profile page
@@ -184,35 +150,37 @@ class LinkedIn:
             pause(min=200, max=400)
             self.sb.click(xpath='//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(text(),"Follow")]')
 
-    def salesnav_connect(self, salesnav_url: str, note: str) -> ProfileDetails:
-#        pdb.set_trace()
-        self.__salesnav_goto_profile(salesnav_url)
+
+    def salesnav_connect(self, salesnav_url: str, note: str):
+        pdb.set_trace()
+        self.sb.get(salesnav_url)
+        res = parse_salesnav_details(page_source=self.sb.driver.page_source)
+        if res['pending']:
+            return res
+        self.__salesnav_goto_profile()
+        res['profile_url'] = self.sb.get_current_url()
+        res2 = parse_profile_details(page_source=self.sb.driver.page_source)
+        res = {**res, **res2}
         try:
-            res = self.__profile_get_details()
             self.__profile_connect(note=note)
         finally:
             self.sb.close_windows()
         return res
 
-    def salesnav_follow(self, salesnav_url: str) -> ProfileDetails:
-        self.__salesnav_goto_profile(salesnav_url)
+    def salesnav_follow(self, salesnav_url: str):
+        pdb.set_trace()
+        self.sb.get(salesnav_url)
+        res = parse_salesnav_details(page_source=self.sb.driver.page_source)
+        if res['pending']:
+            return res
+        self.__salesnav_goto_profile()
+        res['profile_url'] = self.sb.get_current_url()
+        res2 = parse_profile_details(page_source=self.sb.driver.page_source)
+        res = {**res, **res2}
         try:
-            res = self.__profile_get_details()
             self.__profile_follow()
         finally:
             self.sb.close_windows()
-        return res
-
-    def profile_connect(self, profile_url: str, note: str) -> ProfileDetails:
-        self.sb.get(profile_url)
-        res = self.__profile_get_details()
-        self.__profile_connect(note=note)
-        return res
-
-    def profile_follow(self, profile_url: str) -> ProfileDetails:
-        self.sb.get(profile_url)
-        res = self.__profile_get_details()
-        self.__profile_follow()
         return res
 
     def invitations_withdraw(self, page: int):

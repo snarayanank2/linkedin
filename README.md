@@ -66,23 +66,6 @@ linkedin salesnav follow --batch-size=100
 linkedin salesnav connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you'
 ```
 
-* Save search results on your network based on search url
-```
-linkedin network search --url=<search-url> --start-page=2 --num-pages=4
-```
-
-* Follow people in your network (TODO)
-
-```
-linkedin network follow --batch-size=100
-```
-
-* Connect with people in your network (2nd degree only)
-
-```
-linkedin network connect --batch-size=100 --message='Hi {first_name}, I would like to connect with you. Both of us know {common_name}'
-```
-
 * To withdraw old invitations using page number
 ```
 linkedin invitations withdraw --page=10
