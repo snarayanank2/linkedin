@@ -16,11 +16,34 @@ def pause(min=600, max=8000):
     time.sleep(s)
 
 def parse_salesnav_search(page_source: str):
-    pdb.set_trace()
     soup = BeautifulSoup(page_source, 'html.parser')
-    
+    sections = soup.find_all("section", "result-lockup")
     res = []
-    # TODO: implement this
+    for section in sections:
+        full_name = section.dl.find("dt", "result-lockup__name").a.string.strip()
+        words = full_name.split(' ')
+        first_name = words[0].lower().capitalize()
+        last_name = words[-1].lower().capitalize() if len(words) > 1 else None
+        salesnav_url = "https://www.linkedin.com" + section.dl.find("dt", "result-lockup__name").a["href"]
+        company = section.dl.find("span", "result-lockup__position-company").a.span.string.strip()
+        title = section.dl.find_all("dd")[1].span.string.strip()
+        location = None
+        degree = None
+        try:
+            location = section.dl.find_all("dd")[3].ul.li.string.strip()
+            degree = section.dl.find("span", "label-16dp").string.strip()
+        except Exception:
+            pass
+        res.append({
+            'full_name': full_name,
+            'first_name': first_name,
+            'last_name': last_name,
+            'salesnav_url': salesnav_url,
+            'title': title,
+            'company': company,
+            'location': location,
+            'degree': degree
+        })
     return res
 
 def parse_salesnav_details(page_source: str):
@@ -61,27 +84,8 @@ class LinkedIn:
     def __salesnav_search_page(self):
         pause()
         self.sb.scroll_down_page()
-        dls = self.sb.find_many(xpath='//section[@class="result-lockup"]//dl')
-        for dl in dls:
-            data = {}
-            a = dl.find_element_by_xpath('./dt/a')
-            data['full_name'] = a.text
-            data['full_name'] = (data['full_name'].split(',')[0]).lower().capitalize()
-            words = data['full_name'].split(' ')
-            data['first_name'] = words[0].lower().capitalize()
-            data['last_name'] = words[-1].lower().capitalize() if len(words) > 1 else None
-            link = a.get_attribute('href')
-            data['salesnav_url'] = link
-            dds = dl.find_elements_by_xpath('./dd')
-            data['title'] = dds[1].find_elements_by_xpath('./span')[0].text
-            data['company'] = dds[1].find_element_by_xpath('./span/span/a/span').text
-            data['company_url'] = dds[1].find_element_by_xpath('./span/span/a').get_attribute('href')
-            try:
-                data['location'] = dds[3].find_element_by_xpath('./ul/li').text
-                data['experience'] = dds[2].find_element_by_xpath('./span').text
-            except NoSuchElementException as e:
-                logger.exception('could not find element')
-            yield data
+        res = parse_salesnav_search(self.sb.driver.page_source)
+        return res
 
     def salesnav_search(self, url: str, start_page: int, num_pages: int):
         assert num_pages > 0
