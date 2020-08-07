@@ -50,9 +50,10 @@ def parse_salesnav_details(page_source: str):
     soup = BeautifulSoup(page_source, 'html.parser')
     degree = soup.find("span", "label-16dp").string.strip()
     common_name = None
-    common_div = soup.find("li", "best-path-in").find("div", "best-path-in-entity__spotlight")
-    if common_div:
-        common_name = common_div.find("a").string.strip()
+    if soup.find("li", "best-path-in"):
+        common_div = soup.find("li", "best-path-in").find("div", "best-path-in-entity__spotlight")
+        if common_div:
+            common_name = common_div.find("a").string.strip()
     connect_status_li = soup.find("div", "profile-topcard-actions__overflow-dropdown").div.ul.li
     if connect_status_li.div:
         connect_status = 'Connect'
@@ -93,7 +94,10 @@ class LinkedIn:
         self.sb.get(f'{url}&page={current_page}')
         while True:
             logger.info('processing page %s', current_page)
-            for sr in self.__salesnav_search_page():
+            pause()
+            self.sb.scroll_down_page()
+            res = parse_salesnav_search(self.sb.driver.page_source)
+            for sr in res:
                 yield sr
             current_page = current_page + 1
             if current_page >= start_page + num_pages:
@@ -156,10 +160,10 @@ class LinkedIn:
 
 
     def salesnav_connect(self, salesnav_url: str, note: str):
-        pdb.set_trace()
         self.sb.get(salesnav_url)
+        pause(min=1000, max=3000)
         res = parse_salesnav_details(page_source=self.sb.driver.page_source)
-        if res['pending']:
+        if res['connect_status'] == 'Pending':
             return res
         self.__salesnav_goto_profile()
         res['profile_url'] = self.sb.get_current_url()
@@ -172,10 +176,10 @@ class LinkedIn:
         return res
 
     def salesnav_follow(self, salesnav_url: str):
-        pdb.set_trace()
         self.sb.get(salesnav_url)
+        pause(min=1000, max=3000)
         res = parse_salesnav_details(page_source=self.sb.driver.page_source)
-        if res['pending']:
+        if res['connect_status'] == 'Pending':
             return res
         self.__salesnav_goto_profile()
         res['profile_url'] = self.sb.get_current_url()

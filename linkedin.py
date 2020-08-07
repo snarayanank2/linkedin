@@ -127,16 +127,17 @@ def salesnav_connect(ctx, batch_size, message):
         note = message.format(first_name=first_name)
         salesnav_url = row.get_field_value('salesnav_url')
         connected = False
-        profile_url = None
         try:
             res = li.salesnav_connect(salesnav_url=salesnav_url, note=note)
-            profile_url = res['profile_url']
             connected = True
         except Exception:
             logger.exception('skipping %s', first_name)
 
         row.set_field_value('note', note)
-        row.set_field_value('profile_url', profile_url)
+        row.set_field_value('profile_url', res.get('profile_url', None))
+        row.set_field_value('common_name', res.get('common_name', None))
+        row.set_field_value('degree', res.get('degree', None))
+        row.set_field_value('connect_status', res.get('connect_status', None))
         if connected:
             row.set_field_value('invited_at', dt_serialize(datetime.now()))
         else:
@@ -164,15 +165,18 @@ def salesnav_follow(ctx, batch_size):
         salesnav_url = row.get_field_value('salesnav_url')
 
         followed = False
-        profile_url = None
         try:
             res = li.salesnav_follow(salesnav_url=salesnav_url)
-            profile_url = res['profile_url']
             followed = True
         except Exception:
             logger.exception('skipping due to exception')
 
         row.set_field_value('profile_url', profile_url)
+
+        row.set_field_value('profile_url', res.get('profile_url', None))
+        row.set_field_value('common_name', res.get('common_name', None))
+        row.set_field_value('degree', res.get('degree', None))
+        row.set_field_value('follow_status', res.get('follow_status', None))
 
         if followed:
             row.set_field_value('followed_at', dt_serialize(datetime.now()))
