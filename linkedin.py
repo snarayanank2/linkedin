@@ -126,22 +126,18 @@ def salesnav_connect(ctx, batch_size, message):
         first_name = row.get_field_value('first_name')
         note = message.format(first_name=first_name)
         salesnav_url = row.get_field_value('salesnav_url')
-        connected = False
+        row.set_field_value('note', note)
         try:
             res = li.salesnav_connect(salesnav_url=salesnav_url, note=note)
-            connected = True
-        except Exception:
-            logger.exception('skipping %s', first_name)
-
-        row.set_field_value('note', note)
-        row.set_field_value('profile_url', res.get('profile_url', None))
-        row.set_field_value('common_name', res.get('common_name', None))
-        row.set_field_value('degree', res.get('degree', None))
-        row.set_field_value('connect_status', res.get('connect_status', None))
-        if connected:
+            row.set_field_value('profile_url', res.get('profile_url', None))
+            row.set_field_value('common_name', res.get('common_name', None))
+            row.set_field_value('degree', res.get('degree', None))
+            row.set_field_value('connect_status', res.get('connect_status', None))
             row.set_field_value('invited_at', dt_serialize(datetime.now()))
-        else:
+        except Exception:
             row.set_field_value('invite_failed_at', dt_serialize(datetime.now()))
+            logger.exception('connect failed for %s', row.get_field_value('full_name'))
+
         salesnav.commit()
         batch_size = batch_size - 1
         if batch_size <= 0:
@@ -164,26 +160,18 @@ def salesnav_follow(ctx, batch_size):
 
         salesnav_url = row.get_field_value('salesnav_url')
 
-        followed = False
         try:
             res = li.salesnav_follow(salesnav_url=salesnav_url)
-            followed = True
-        except Exception:
-            logger.exception('skipping due to exception')
-
-        row.set_field_value('profile_url', profile_url)
-
-        row.set_field_value('profile_url', res.get('profile_url', None))
-        row.set_field_value('common_name', res.get('common_name', None))
-        row.set_field_value('degree', res.get('degree', None))
-        row.set_field_value('follow_status', res.get('follow_status', None))
-
-        if followed:
+            row.set_field_value('profile_url', res.get('profile_url', None))
+            row.set_field_value('common_name', res.get('common_name', None))
+            row.set_field_value('degree', res.get('degree', None))
+            row.set_field_value('follow_status', res.get('follow_status', None))
             row.set_field_value('followed_at', dt_serialize(datetime.now()))
-        else:
+        except Exception:
             row.set_field_value('follow_failed_at', dt_serialize(datetime.now()))
+            logger.exception('follow failed for %s', row.get_field_value('full_name'))
+
         salesnav.commit()
-        pause()
         batch_size = batch_size - 1
         if batch_size <= 0:
             break
