@@ -161,7 +161,7 @@ class LinkedIn:
 
     def salesnav_connect(self, salesnav_url: str, note: str):
         self.sb.get(salesnav_url)
-        pause(min=1000, max=3000)
+        pause(min=2000, max=3000)
         res = parse_salesnav_details(page_source=self.sb.driver.page_source)
         if res['connect_status'] == 'Pending':
             return res
