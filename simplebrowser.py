@@ -142,7 +142,8 @@ class SimpleBrowser:
         l.click()
         for c in keys:
             l.send_keys(c)
-            pause(min=300, max=700)
+            s = (random.randint(300, 600) * 1.0) / 1000.0
+            time.sleep(s)
         return l
 
     def close_windows(self):
