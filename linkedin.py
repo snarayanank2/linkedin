@@ -112,7 +112,7 @@ def salesnav_search(ctx, url, start_page, num_pages):
 @salesnav.command('connect')
 @click.pass_context
 @click.option('--batch-size', default=100, required=True, help='Number of people to connect with')
-@click.option('--message', default=lambda: os.environ.get('SALESNAV_CONNECT_MESSAGE', None), required=True, help='Need a message to include when connecting')
+@click.option('--message', default=lambda: os.environ.get('SALESNAV_CONNECT_MESSAGE', None), help='Need a message to include when connecting')
 def salesnav_connect(ctx, batch_size, message):
     salesnav = ctx.obj['salesnav']
     li = ctx.obj['li']
