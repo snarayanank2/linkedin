@@ -6,35 +6,34 @@ import re
 import time
 import random
 import logging
-from bs4 import BeautifulSoup
+from lxml import html, etree
 
 logger = logging.getLogger(__name__)
 
+#logging.basicConfig(level=logging.INFO)
 
 def pause(min=600, max=8000):
     s = (random.randint(min, max) * 1.0) / 1000.0
     time.sleep(s)
 
 def parse_salesnav_search(page_source: str):
-    soup = BeautifulSoup(page_source, 'html.parser')
-    sections = soup.find_all("section", "result-lockup")
+    tree = html.fromstring(page_source)
+    sections = tree.xpath('//section[contains(@class, "result-lockup")]')
     res = []
     for section in sections:
-        full_name = section.dl.find("dt", "result-lockup__name").a.string.strip()
+        full_name = section.xpath('.//dt[contains(@class, "result-lockup__name")]/a/text()')[0].strip()
+        logger.info('%s', full_name)
         words = full_name.split(' ')
         first_name = words[0].lower().capitalize()
         last_name = words[-1].lower().capitalize() if len(words) > 1 else None
-        salesnav_url = "https://www.linkedin.com" + section.dl.find("dt", "result-lockup__name").a["href"]
-        company = section.dl.find("span", "result-lockup__position-company").a.span.string.strip()
-        title = section.dl.find_all("dd")[1].span.string.strip()
-        location = None
-        degree = None
-        try:
-            location = section.dl.find_all("dd")[3].ul.li.string.strip()
-            degree = section.dl.find("span", "label-16dp").string.strip()
-        except Exception:
-            pass
-        res.append({
+        salesnav_url = 'https://www.linkedin.com' + section.xpath('.//dt[contains(@class, "result-lockup__name")]/a/@href')[0]
+        logger.info('%s', salesnav_url)
+        company = section.xpath('.//dl//span[contains(@class, "result-lockup__position-company")]/a/span/text()')[0].strip()
+        title = section.xpath('.//dl//dd[2]//span/text()')[0].strip()
+        degree = section.xpath('.//dl//span[contains(@class, "label-16dp")]/text()')[0].strip()
+        location_dd = section.xpath('.//dl//dd[4]/ul/li/text()')
+        location = location_dd[0].strip() if len(location_dd) > 0 else None
+        d = {
             'full_name': full_name,
             'first_name': first_name,
             'last_name': last_name,
@@ -43,31 +42,60 @@ def parse_salesnav_search(page_source: str):
             'company': company,
             'location': location,
             'degree': degree
-        })
+        }
+#        logger.info('d = %s', d)
+        res.append(d)
     return res
 
 def parse_salesnav_details(page_source: str):
-    soup = BeautifulSoup(page_source, 'html.parser')
-    degree = soup.find("span", "label-16dp").string.strip()
-    common_name = None
-    if soup.find("li", "best-path-in"):
-        common_div = soup.find("li", "best-path-in").find("div", "best-path-in-entity__spotlight")
-        if common_div:
-            common_name = common_div.find("a").string.strip()
-    connect_status_li = soup.find("div", "profile-topcard-actions__overflow-dropdown").div.ul.li
-    if connect_status_li.div:
-        connect_status = 'Connect'
-    else:
-        connect_status = 'Pending'
+    tree = html.fromstring(page_source)
+    pdb.set_trace()
+    degree = tree.xpath('//span[contains(@class, "label-16dp")]/text()')[0].strip()
+    common_name_a = tree.xpath('//li[contains(@class, "best-path-in")]//div[contains(@class, "best-path-in-entity__spotlight")]//a/text()')
+    common_name = common_name_a[0].strip() if len(common_name_a) > 0 else None
     return {
         'degree': degree,
-        'common_name': common_name,
-        'connect_status': connect_status
+        'common_name': common_name
     }
 
 def parse_profile_details(page_source: str):
-    # TODO: implement this
-    return {}
+    connect_status = None
+    follow_status = None
+    degree = None
+    tree = html.fromstring(page_source)
+    degree = tree.xpath('.//li[contains(@class, "pv-top-card__distance-badge")]//span[@class="dist-value"]/text()')[0]
+    top_card = tree.xpath('.//section[contains(@class, "pv-top-card")]')[0]
+    a1 = top_card.xpath('.//div[contains(@class, "ph5")]//div[contains(@class, "mt1")]//span[contains(@class, "artdeco-button__text")]')[0].text.strip()
+    if a1 == 'Pending':
+        connect_status = 'requested'
+    elif a1 == 'Connect':
+        connect_status = 'not_requested'
+    else:
+        connect_status = 'connected'
+    a2 = top_card.xpath('.//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(@class, "pv-s-profile-actions__label")]/text()')
+    if len(a2) > 0 and a2[0] == 'Follow':
+        follow_status = 'not_followed'
+    else:
+        follow_status = 'followed'
+    return {
+        'connect_status': connect_status,
+        'follow_status': follow_status,
+        'degree': degree
+    }
+
+    # a1 = top_card_section.find("div", "ph5").find("div", "mt1").find_all("span", recursive=False)[0]
+    # print(a1.prettify())
+    # actions.update(list(bar.find_all("span", recursive=False)[0].a.stripped_strings))
+    # logger.info('actions = %s', actions)
+    # if 'Connect' in actions:
+    #     connect_status = 'connect_requested'
+    # elif 'Pending' in actions:
+    #     connect_status = 'connect_pending'
+    # elif 'Message' in actions:
+    #     connect_status = 'connected'
+    # follow_status = None
+
+parse_profile_details_file('./tests/data/profiles/profile5.html')
 
 class LinkedIn:
 
@@ -179,7 +207,7 @@ class LinkedIn:
         self.sb.get(salesnav_url)
         pause(min=1000, max=3000)
         res = parse_salesnav_details(page_source=self.sb.driver.page_source)
-        if res['connect_status'] == 'Pending':
+        if res['follow_status'] == 'Unfollow':
             return res
         self.__salesnav_goto_profile()
         res['profile_url'] = self.sb.get_current_url()
