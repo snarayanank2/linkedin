@@ -150,7 +150,7 @@ class LinkedIn:
             connected = True
 
         assert connected
-        if note:
+        if note and len(note) > 10:
             self.sb.click(xpath='//button[contains(@aria-label, "Add a note")]')
             self.sb.input(xpath='//textarea[@name="message"]', keys=note)
             self.sb.click(xpath='//button[contains(@aria-label, "Done")]')
