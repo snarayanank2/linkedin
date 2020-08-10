@@ -64,12 +64,12 @@ def parse_profile_details(page_source: str):
     degree = tree.xpath('.//li[contains(@class, "pv-top-card__distance-badge")]//span[@class="dist-value"]/text()')[0]
     top_card = tree.xpath('.//section[contains(@class, "pv-top-card")]')[0]
     a1 = top_card.xpath('.//div[contains(@class, "ph5")]//div[contains(@class, "mt1")]//span[contains(@class, "artdeco-button__text")]')[0].text.strip()
-    if a1 == 'Pending':
-        connect_status = 'requested'
-    elif a1 == 'Connect':
-        connect_status = 'not_requested'
-    else:
+    if degree == '1st':
         connect_status = 'connected'
+    elif a1 == 'Pending':
+        connect_status = 'requested'
+    else:
+        connect_status = 'not_requested'
     a2 = top_card.xpath('.//div[contains(@class, "pv-s-profile-actions--follow")]//span[contains(@class, "pv-s-profile-actions__label")]/text()')
     if len(a2) > 0 and a2[0] == 'Follow':
         follow_status = 'not_followed'
