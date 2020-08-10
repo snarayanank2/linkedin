@@ -28,9 +28,10 @@ def parse_salesnav_search(page_source: str):
         logger.info('%s', salesnav_url)
         company = section.xpath('.//dl//span[contains(@class, "result-lockup__position-company")]/a/span/text()')[0].strip()
         title = section.xpath('.//dl//dd[2]//span/text()')[0].strip()
-        degree = section.xpath('.//dl//span[contains(@class, "label-16dp")]/text()')[0].strip()
-        location_dd = section.xpath('.//dl//dd[4]/ul/li/text()')
-        location = location_dd[0].strip() if len(location_dd) > 0 else None
+        degree_c = section.xpath('.//dl//span[contains(@class, "label-16dp")]/text()')
+        degree = degree_c[0].strip() if len(degree_c) > 0 else None
+        location_c = section.xpath('.//dl//dd[4]/ul/li/text()')
+        location = location_c[0].strip() if len(location_c) > 0 else None
         d = {
             'full_name': full_name,
             'first_name': first_name,
