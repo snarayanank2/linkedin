@@ -139,7 +139,8 @@ class LinkedIn:
             self.sb.click(xpath='//button[contains(@aria-label, "Connect with")]')
             connected = True
         except Exception as e:
-            logger.error('did not find connect button will try more..')
+            pass
+#            logger.error('did not find connect button will try more..')
 
         if not connected:
             self.sb.click(xpath='//button/span[contains(text(), "More")]')
@@ -162,7 +163,8 @@ class LinkedIn:
             self.sb.click(xpath='//button[contains(@aria-label, "Follow")]')
             followed = True
         except Exception as e:
-            logger.error('did not find follow button will try more..')
+            pass
+#            logger.error('did not find follow button will try more..')
 
         if not followed:
             self.sb.click(xpath='//button/span[contains(text(), "More")]')
@@ -180,13 +182,13 @@ class LinkedIn:
         res = {**res, **res2}
         try:
             if res['connect_status'] == 'not_requested':
-                logger.info('trying to connect %s at %s', res['full_name'], res['profile_url'])
+                logger.info('trying to connect %s', res['profile_url'])
                 self.__profile_connect(note=note)
                 logger.info('successfully requested')
             else:
                 logger.info('already connected.. skipping')
         except Exception as e:
-            logger.exception('connect %s failed', res['full_name'])
+            logger.exception('connect %s failed', res['profile_url'])
             raise e
         finally:
             self.sb.close_windows()
@@ -202,13 +204,13 @@ class LinkedIn:
         res = {**res, **res2}
         try:
             if res['follow_status'] == 'not_followed':
-                logger.info('trying to follow %s at %s', res['full_name'], res['profile_url'])
+                logger.info('trying to follow %s', res['profile_url'])
                 self.__profile_follow()
                 logger.info('followed successfully')
             else:
                 logger.info('already followed.. skipping')
         except Exception as e:
-            logger.exception('following %s failed', res['full_name'])
+            logger.exception('following %s failed', res['profile_url'])
             raise e
         finally:
             self.sb.close_windows()
