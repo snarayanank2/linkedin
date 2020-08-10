@@ -10,8 +10,6 @@ from lxml import html, etree
 
 logger = logging.getLogger(__name__)
 
-#logging.basicConfig(level=logging.INFO)
-
 def pause(min=600, max=8000):
     s = (random.randint(min, max) * 1.0) / 1000.0
     time.sleep(s)
@@ -49,7 +47,6 @@ def parse_salesnav_search(page_source: str):
 
 def parse_salesnav_details(page_source: str):
     tree = html.fromstring(page_source)
-    pdb.set_trace()
     degree = tree.xpath('//span[contains(@class, "label-16dp")]/text()')[0].strip()
     common_name_a = tree.xpath('//li[contains(@class, "best-path-in")]//div[contains(@class, "best-path-in-entity__spotlight")]//a/text()')
     common_name = common_name_a[0].strip() if len(common_name_a) > 0 else None
@@ -82,20 +79,6 @@ def parse_profile_details(page_source: str):
         'follow_status': follow_status,
         'degree': degree
     }
-
-    # a1 = top_card_section.find("div", "ph5").find("div", "mt1").find_all("span", recursive=False)[0]
-    # print(a1.prettify())
-    # actions.update(list(bar.find_all("span", recursive=False)[0].a.stripped_strings))
-    # logger.info('actions = %s', actions)
-    # if 'Connect' in actions:
-    #     connect_status = 'connect_requested'
-    # elif 'Pending' in actions:
-    #     connect_status = 'connect_pending'
-    # elif 'Message' in actions:
-    #     connect_status = 'connected'
-    # follow_status = None
-
-parse_profile_details_file('./tests/data/profiles/profile5.html')
 
 class LinkedIn:
 
@@ -191,14 +174,20 @@ class LinkedIn:
         self.sb.get(salesnav_url)
         pause(min=2000, max=3000)
         res = parse_salesnav_details(page_source=self.sb.driver.page_source)
-        if res['connect_status'] == 'Pending':
-            return res
         self.__salesnav_goto_profile()
         res['profile_url'] = self.sb.get_current_url()
         res2 = parse_profile_details(page_source=self.sb.driver.page_source)
         res = {**res, **res2}
         try:
-            self.__profile_connect(note=note)
+            if res['connect_status'] == 'not_requested':
+                logger.info('trying to connect %s at %s', res['full_name'], res['profile_url'])
+                self.__profile_connect(note=note)
+                logger.info('successfully requested')
+            else:
+                logger.info('already connected.. skipping')
+        except Exception as e:
+            logger.exception('connect %s failed', res['full_name'])
+            raise e
         finally:
             self.sb.close_windows()
         return res
@@ -207,14 +196,20 @@ class LinkedIn:
         self.sb.get(salesnav_url)
         pause(min=1000, max=3000)
         res = parse_salesnav_details(page_source=self.sb.driver.page_source)
-        if res['follow_status'] == 'Unfollow':
-            return res
         self.__salesnav_goto_profile()
         res['profile_url'] = self.sb.get_current_url()
         res2 = parse_profile_details(page_source=self.sb.driver.page_source)
         res = {**res, **res2}
         try:
-            self.__profile_follow()
+            if res['follow_status'] == 'not_followed':
+                logger.info('trying to follow %s at %s', res['full_name'], res['profile_url'])
+                self.__profile_follow()
+                logger.info('followed successfully')
+            else:
+                logger.info('already followed.. skipping')
+        except Exception as e:
+            logger.exception('following %s failed', res['full_name'])
+            raise e
         finally:
             self.sb.close_windows()
         return res
