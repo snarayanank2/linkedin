@@ -156,6 +156,7 @@ class LinkedIn:
             self.sb.click(xpath='//button[contains(@aria-label, "Done")]')
         else:
             self.sb.click(xpath='//button[contains(@aria-label, "Send now")]')
+        pause(min=500, max=1000)
 
     def __profile_follow(self):
         # TODO: assert that we are in a profile page
