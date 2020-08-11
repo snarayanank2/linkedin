@@ -48,7 +48,8 @@ def parse_salesnav_search(page_source: str):
 
 def parse_salesnav_details(page_source: str):
     tree = html.fromstring(page_source)
-    degree = tree.xpath('//span[contains(@class, "label-16dp")]/text()')[0].strip()
+    degree_c = tree.xpath('//span[contains(@class, "label-16dp")]/text()')
+    degree = degree_c[0].strip() if len(degree_c) > 0 else None
     common_name_a = tree.xpath('//li[contains(@class, "best-path-in")]//div[contains(@class, "best-path-in-entity__spotlight")]//a/text()')
     common_name = common_name_a[0].strip() if len(common_name_a) > 0 else None
     return {
