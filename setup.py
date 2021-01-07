@@ -6,7 +6,7 @@ setup(
     version='0.1',
     py_modules=['linkedin'],
     install_requires=[
-        'selenium==3.141.0', 'sheetfu==1.5.3', 'click==7.0', 'python-dateutil==2.8.1', 'lxml==4.5.2'
+        'selenium==3.141.0', 'sheetfu==1.5.3', 'click==7.0', 'python-dateutil==2.8.1', 'lxml==4.6.2'
     ],
     entry_points='''
         [console_scripts]
