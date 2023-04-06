@@ -6,10 +6,14 @@ from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import SessionNotCreatedException
 from selenium.webdriver.chrome.options import Options
+import selenium.webdriver.support.ui as ui
+from selenium.webdriver.common.keys import Keys
+
 import os
 import time
 import logging
 import random
+
 
 logger = logging.getLogger(__name__)
 
